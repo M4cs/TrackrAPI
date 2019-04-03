@@ -1,0 +1,89 @@
+<style>
+html *
+{
+     font-size: 1em !important;
+     color: #000 !important;
+     font-family: Arial !important;
+}
+</style>
+<h1 id="trackrcydiarepositoryapi">Trackr Cydia Repository API</h1>
+
+<h1 id="endpoints">Endpoints:</h1>
+
+<p><code>/packages</code> - Package Serving Endpoint</p>
+
+<p><code>/package/count</code> - Package Count Endpoint</p>
+
+<h1 id="whatistrackr">What is Trackr?</h1>
+
+<p>Trackr is a simple, lightweight download count and CDN service for DigitalOcean and AWS Buckets. You don't need DigitalOcean or AWS but it is optimized to work with them.</p>
+
+<p>The Trackr API consists of 2 simple endpoints. One for serving files and tracking the times served (<code>/packages</code>) and one for grabbing the count of packages (<code>/packages/count</code>). The API is setup to run with Gunicorn and Nginx but you can configure it to suit your needs. I run it on my DigitalOcean box with Supervisor and Gunicorn. Follow <a href="https://medium.com/ymedialabs-innovation/deploy-flask-app-with-nginx-using-gunicorn-and-supervisor-d7a93aa07c18">this medium post</a> for an easy guide on getting a flask app running with those two tools.</p>
+
+<h1 id="requirements">Requirements</h1>
+
+<ul>
+<li>A Virtual Private Server or Dedicated Server on Linux (Ubuntu 16.04 is generally easiest to get setup)</li>
+
+<li>Nginx (You can use Apache but I don't offer support for it)</li>
+
+<li>Flask</li>
+
+<li>Python 3.5.2+</li>
+
+<li>Optional: DigitalOcean Spaces or Amazon S3 Bucket and/or CDN Service</li>
+</ul>
+
+<h1 id="using">Using</h1>
+
+<p><strong>For DigitalOcean or AWS S3 Buckets</strong></p>
+
+<p>To get setup with Trackr and  you will need to edit the <code>config.json</code> file in the <code>app/</code> folder. There you will put your Access Key and Secret Key. You can also make them environment variables and replace the <code>aws_access_key</code> and <code>aws_secret_key</code> parameters in the Session call inside <code>app/resources.py</code>. <strong>You will also need to configure <code>app/resources.py</code> inside the Session call with your CDN endpoints. Example below.</strong></p>
+
+<p><strong>For The Rest and DigitalOcean or AWS S3 Bucket Hosts</strong></p>
+
+<p>First, clone the repository to your server in your user's home folder (I don't reccommend using root). If you are not using a CDN or Bucket to host files comment out the block in <code>app/resources.py</code> that says <strong><code>NON CDN USERS COMMENT OUT</code></strong>. Also comment out the return statement at the bottom and uncomment/replace the link with your repository. <strong>READ THE <code>app/resources.py</code> COMMENTS IN ORDER TO UNDERSTAND HOW THE REDIRECTS WORK</strong></p>
+
+<p>Follow <a href="https://medium.com/ymedialabs-innovation/deploy-flask-app-with-nginx-using-gunicorn-and-supervisor-d7a93aa07c18">this link</a> once you have all the files setup on your server to get it running as a service on your box.</p>
+
+<h1 id="howthepackagesredirectworks">How The Packages Redirect Works</h1>
+
+<p>I'm sure for some people who are new to python or programming in general they don't understand how the redirects work to get the packages file setup to serve files.</p>
+
+<h3 id="forcdns">For CDNs:</h3>
+
+<p>How To Set Parameters Correctly:</p>
+
+<pre><code>client = session.client('s3', # Digital Ocean and AWS use this
+                        region_name='', # Ex.: 'sfo2'
+                        endpoint_url='', # Ex.: 'https://sfo2.digitaloceanspaces.com/'
+                        aws_access_key_id=aws_access, # Enter in app/config.json
+                        aws_secret_access_key=aws_secret) # Enter in app/config.json
+res = client.list_objects(Bucket='', Prefix='') # Bucket = Space or Bucket your files are on. Prefix = subfolder(s) in bucket that files are contained in.
+</code></pre>
+
+<h3 id="fornoncdns">For Non-CDNs:</h3>
+
+<p>How To Set Redirects and Your Repo Up:</p>
+
+<p>If your repo is setup like this:</p>
+
+<pre><code>/repo
+/repo/index.html
+/repo/Packages.bz2
+/repo/Release
+/repo/CydiaIcon.png
+/repo/debs/
+     /debs/com.example.tweak.deb
+     /debs/com.example2.tweak.deb
+</code></pre>
+
+<p>Then your redirect should be:</p>
+
+<pre><code>return redirect('https://repo.example.com/repo/debs/' + data['packages'], 302)
+</code></pre>
+
+<p>Your Filename Value for the entry for <code>com.example.tweak.deb</code> in <code>Packages</code> would be:</p>
+
+<pre><code>Filename: https://api.example.com/packages?package=com.example.tweak.deb
+</code></pre>
